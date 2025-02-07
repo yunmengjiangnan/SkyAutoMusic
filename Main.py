@@ -25,18 +25,20 @@ def rename_txt_to_json(folder_path):
             else:
                 print(f"文件 {new_filename} 已存在，跳过重命名 {filename}")
 
-def main():
-    songs_folder = "score/score/"
-    rename_txt_to_json(songs_folder)
-
+def setup_application():
     app = QApplication(sys.argv)
-    
     try:
         app_icon = QIcon(resource_path("icon.ico"))
         app.setWindowIcon(app_icon)
     except Exception as e:
         print(f"加载图标失败: {str(e)}")
-    
+    return app
+
+def main():
+    songs_folder = "score/score/"
+    rename_txt_to_json(songs_folder)
+
+    app = setup_application()
     window = ModernSkyMusicPlayer()
     window.show()
     sys.exit(app.exec())

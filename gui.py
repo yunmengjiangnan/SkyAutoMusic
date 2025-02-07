@@ -215,272 +215,153 @@ class SpeedInput(QLineEdit):
 class ModernSkyMusicPlayer(QMainWindow):
     def __init__(self):
         super().__init__()
+        self.initialize_ui()
+        self.initialize_data()
+        self.setup_main_interface()
+        self.setup_log_window()
+        self.load_initial_data()
+        self.setup_timers()
+        self.setup_hotkeys()
+        self.register_global_hotkeys()
+
+    def initialize_ui(self):
         self.setWindowTitle("Sky Auto Music")
         self.setGeometry(100, 100, 1200, 800)
-        
         try:
             self.setWindowIcon(QIcon(resource_path("icon.ico")))
         except Exception as e:
             print(f"加载窗口图标失败: {str(e)}")
-        
-        self.setStyleSheet("""
-            QMainWindow {
-                background-color: #1e1e1e;
-            }
-            QListWidget {
-                background-color: #252525;
-                color: #ffffff;
-                border: 1px solid #333333;
-                border-radius: 4px;
-                font-size: 12px;
-                padding: 4px;
-            }
-            QListWidget::item {
-                padding: 4px;
-                border-radius: 2px;
-            }
-            QListWidget::item:selected {
-                background-color: #2d2d2d;
-                color: #4CAF50;
-            }
-            QListWidget::item:hover {
-                background-color: #2a2a2a;
-            }
-            QLineEdit {
-                background-color: #252525;
-                color: #ffffff;
-                border: 1px solid #333333;
-                border-radius: 4px;
-                padding: 6px;
-            }
-            QPushButton {
-                background-color: #2d2d2d;
-                color: #ffffff;
-                border: 1px solid #333333;
-                padding: 8px 16px;
-                border-radius: 4px;
-            }
-            QPushButton:hover {
-                background-color: #3d3d3d;
-                border: 1px solid #4CAF50;
-            }
-            QPushButton:pressed {
-                background-color: #4CAF50;
-            }
-            QLabel {
-                color: #cccccc;
-            }
-            QProgressBar {
-                border: 1px solid #333333;
-                border-radius: 4px;
-                text-align: center;
-                background-color: #252525;
-            }
-            QProgressBar::chunk {
-                background-color: #4CAF50;
-                border-radius: 3px;
-            }
-            QSlider::groove:horizontal {
-                border: 1px solid #333333;
-                height: 8px;
-                background: #252525;
-                margin: 2px 0;
-                border-radius: 4px;
-            }
-            QSlider::handle:horizontal {
-                background: #4CAF50;
-                border: 1px solid #45a049;
-                width: 18px;
-                margin: -5px 0;
-                border-radius: 9px;
-            }
-            QSlider::handle:horizontal:hover {
-                background: #45a049;
-            }
-            QTabWidget::pane {
-                border: 1px solid #333333;
-                background-color: #252525;
-            }
-            QTabBar::tab {
-                background-color: #2d2d2d;
-                color: #ffffff;
-                padding: 8px 16px;
-                border-top-left-radius: 4px;
-                border-top-right-radius: 4px;
-            }
-            QTabBar::tab:selected {
-                background-color: #4CAF50;
-            }
-            QTabBar::tab:hover {
-                background-color: #3d3d3d;
-            }
-            QDockWidget {
-                color: #ffffff;
-                titlebar-close-icon: url(close.png);
-                titlebar-normal-icon: url(float.png);
-            }
-            QDockWidget::title {
-                background-color: #2d2d2d;
-                padding: 6px;
-            }
-            QMenu {
-                background-color: #252525;
-                color: #ffffff;
-                border: 1px solid #333333;
-            }
-            QMenu::item {
-                padding: 5px 20px;
-            }
-            QMenu::item:selected {
-                background-color: #4CAF50;
-            }
-            QComboBox {
-                background-color: #252525;
-                color: #ffffff;
-                border: 1px solid #333333;
-                border-radius: 4px;
-                padding: 4px 8px;
-                min-width: 100px;
-            }
-            QComboBox:hover {
-                border: 1px solid #4CAF50;
-            }
-            QComboBox:focus {
-                border: 1px solid #4CAF50;
-            }
-            QComboBox::drop-down {
-                border: none;
-                width: 20px;
-            }
-            QComboBox::down-arrow {
-                image: url(down_arrow.png);
-                width: 12px;
-                height: 12px;
-            }
-            QComboBox::down-arrow:on {
-                top: 1px;
-            }
-            QComboBox QAbstractItemView {
-                background-color: #252525;
-                color: #ffffff;
-                selection-background-color: #4CAF50;
-                selection-color: #ffffff;
-                border: 1px solid #333333;
-            }
-        """)
-        
+        self.setStyleSheet(self.get_stylesheet())
         self.central_widget = QWidget()
         self.setCentralWidget(self.central_widget)
         self.main_layout = QVBoxLayout(self.central_widget)
-        
+
+    def initialize_data(self):
         self.current_song_data = None
         self.play_thread = None
-        self.current_hotkeys = {
-            "pause": "F10",
-            "stop": "F11"
-        }
+        self.current_hotkeys = {"pause": "F10", "stop": "F11"}
         self.hotkey_edits = {}
         self.total_duration = 0
-        
         self._song_cache = {}
         self._current_song = None
         self._max_cache_size = 50
-        
         self.favorites_file = "favorites.json"
         self.hotkey_settings_file = "hotkey_settings.json"
-        
         self.delay_enabled = False
         self.delay_min = 200
         self.delay_max = 500
-        
         self.current_play_mode = "单曲循环"
-        
-        self.setup_main_interface()
-        self.setup_log_window()
-        
+        self.is_dragging = False
+
+    def load_initial_data(self):
         self.favorites = self.load_favorites()
         self.load_hotkey_settings()
         self.load_song_list()
         self.load_favorites_list()
-        
+
+    def setup_timers(self):
         self._update_timer = QTimer()
         self._update_timer.timeout.connect(self._update_ui)
         self._update_timer.start(100)
-
-        self.setup_hotkeys()
-        
-        self.register_global_hotkeys()
-
         self.window_check_timer = QTimer()
         self.window_check_timer.timeout.connect(self.check_window_focus)
         self.window_check_timer.start(1000)
-
         self.load_delay_settings()
 
-        self.is_dragging = False
+    def get_stylesheet(self):
+        return """
+            QMainWindow { background-color: #1e1e1e; }
+            QListWidget { background-color: #252525; color: #ffffff; border: 1px solid #333333; border-radius: 4px; font-size: 12px; padding: 4px; }
+            QListWidget::item { padding: 4px; border-radius: 2px; }
+            QListWidget::item:selected { background-color: #2d2d2d; color: #4CAF50; }
+            QListWidget::item:hover { background-color: #2a2a2a; }
+            QLineEdit { background-color: #252525; color: #ffffff; border: 1px solid #333333; border-radius: 4px; padding: 6px; }
+            QPushButton { background-color: #2d2d2d; color: #ffffff; border: 1px solid #333333; padding: 8px 16px; border-radius: 4px; }
+            QPushButton:hover { background-color: #3d3d3d; border: 1px solid #4CAF50; }
+            QPushButton:pressed { background-color: #4CAF50; }
+            QLabel { color: #cccccc; }
+            QProgressBar { border: 1px solid #333333; border-radius: 4px; text-align: center; background-color: #252525; }
+            QProgressBar::chunk { background-color: #4CAF50; border-radius: 3px; }
+            QSlider::groove:horizontal { border: 1px solid #333333; height: 8px; background: #252525; margin: 2px 0; border-radius: 4px; }
+            QSlider::handle:horizontal { background: #4CAF50; border: 1px solid #45a049; width: 18px; margin: -5px 0; border-radius: 9px; }
+            QSlider::handle:horizontal:hover { background: #45a049; }
+            QTabWidget::pane { border: 1px solid #333333; background-color: #252525; }
+            QTabBar::tab { background-color: #2d2d2d; color: #ffffff; padding: 8px 16px; border-top-left-radius: 4px; border-top-right-radius: 4px; }
+            QTabBar::tab:selected { background-color: #4CAF50; }
+            QTabBar::tab:hover { background-color: #3d3d3d; }
+            QDockWidget { color: #ffffff; titlebar-close-icon: url(close.png); titlebar-normal-icon: url(float.png); }
+            QDockWidget::title { background-color: #2d2d2d; padding: 6px; }
+            QMenu { background-color: #252525; color: #ffffff; border: 1px solid #333333; }
+            QMenu::item { padding: 5px 20px; }
+            QMenu::item:selected { background-color: #4CAF50; }
+            QComboBox { background-color: #252525; color: #ffffff; border: 1px solid #333333; border-radius: 4px; padding: 4px 8px; min-width: 100px; }
+            QComboBox:hover { border: 1px solid #4CAF50; }
+            QComboBox:focus { border: 1px solid #4CAF50; }
+            QComboBox::drop-down { border: none; width: 20px; }
+            QComboBox::down-arrow { image: url(down_arrow.png); width: 12px; height: 12px; }
+            QComboBox::down-arrow:on { top: 1px; }
+            QComboBox QAbstractItemView { background-color: #252525; color: #ffffff; selection-background-color: #4CAF50; selection-color: #ffffff; border: 1px solid #333333; }
+        """
 
     def setup_main_interface(self):
         main_interface = QWidget()
         main_layout = QVBoxLayout(main_interface)
         main_layout.setContentsMargins(10, 10, 10, 10)
         main_layout.setSpacing(10)
-        
         main_tab_widget = QTabWidget()
-        
+        self.setup_play_tab(main_tab_widget)
+        self.setup_about_tab(main_tab_widget)
+        main_layout.addWidget(main_tab_widget)
+        self.main_layout.addWidget(main_interface)
+
+    def setup_play_tab(self, main_tab_widget):
         play_tab = QWidget()
         play_layout = QHBoxLayout(play_tab)
         play_layout.setContentsMargins(5, 5, 5, 5)
         play_layout.setSpacing(10)
-        
         self.setup_left_panel(play_layout)
         self.setup_right_panel(play_layout)
-        
         main_tab_widget.addTab(play_tab, "播放")
-        
+
+    def setup_about_tab(self, main_tab_widget):
         about_tab = QWidget()
         about_layout = QVBoxLayout(about_tab)
         about_layout.setContentsMargins(20, 20, 20, 20)
         about_layout.setSpacing(10)
-        
         latest_version = fetch_latest_version()
-        
         version_label = QLabel(f"当前版本: {LOCAL_VERSION}")
         latest_version_label = QLabel(f"最新版本: {latest_version}")
         author_label = QLabel("作者: Tloml-Starry")
-        
         homepage_label = QLabel('项目主页：<a href="https://github.com/Tloml-Starry/SkyAutoMusic">GitHub</a> | <a href="https://gitee.com/Tloml-Starry/SkyAutoMusic">Gitee</a>')
         homepage_label.setOpenExternalLinks(True)
-        
         feedback_label = QLabel('BUG反馈&功能提议&流: <a href="https://qm.qq.com/q/dWe60BFyE0">392665563</a>')
         feedback_label.setOpenExternalLinks(True)
-        
         for widget in [version_label, latest_version_label, author_label, homepage_label, feedback_label]:
             widget.setAlignment(Qt.AlignmentFlag.AlignCenter)
             widget.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
             about_layout.addWidget(widget)
-        
         about_layout.addStretch()
-        
         main_tab_widget.addTab(about_tab, "关于")
-        
-        main_layout.addWidget(main_tab_widget)
-        self.main_layout.addWidget(main_interface)
 
     def setup_left_panel(self, layout):
         left_panel = QWidget()
         left_layout = QVBoxLayout(left_panel)
         left_layout.setContentsMargins(5, 5, 5, 5)
         left_layout.setSpacing(10)
-        
         self.search_input = QLineEdit()
         self.search_input.setPlaceholderText("搜索曲...")
         self.search_input.setFixedHeight(30)
         self.search_input.textChanged.connect(self.filter_songs)
         left_layout.addWidget(self.search_input)
-        
         tab_widget = QTabWidget()
         tab_widget.currentChanged.connect(self.on_tab_changed)
-        
+        self.setup_songs_tab(tab_widget)
+        self.setup_favorites_tab(tab_widget)
+        self.setup_open_folder_tab(tab_widget)
+        left_layout.addWidget(tab_widget)
+        layout.addWidget(left_panel, stretch=2)
+
+    def setup_songs_tab(self, tab_widget):
         songs_tab = QWidget()
         songs_layout = QVBoxLayout(songs_tab)
         self.song_list = QListWidget()
@@ -491,7 +372,8 @@ class ModernSkyMusicPlayer(QMainWindow):
         self.song_list.customContextMenuRequested.connect(self.show_song_context_menu)
         songs_layout.addWidget(self.song_list)
         tab_widget.addTab(songs_tab, "🎵")
-        
+
+    def setup_favorites_tab(self, tab_widget):
         favorites_tab = QWidget()
         favorites_layout = QVBoxLayout(favorites_tab)
         self.favorites_list = QListWidget()
@@ -502,73 +384,52 @@ class ModernSkyMusicPlayer(QMainWindow):
         self.favorites_list.customContextMenuRequested.connect(self.show_favorites_context_menu)
         favorites_layout.addWidget(self.favorites_list)
         tab_widget.addTab(favorites_tab, "💙")
-        
+
+    def setup_open_folder_tab(self, tab_widget):
         open_folder_tab = QWidget()
         tab_widget.addTab(open_folder_tab, "📂")
-        
-        left_layout.addWidget(tab_widget)
-        layout.addWidget(left_panel, stretch=2)
 
     def setup_right_panel(self, layout):
         right_panel = QWidget()
         right_layout = QVBoxLayout(right_panel)
         right_layout.setContentsMargins(5, 5, 5, 5)
         right_layout.setSpacing(10)
-        
-        # 播放控制区域
+        self.setup_play_controls(right_layout)
+        self.setup_time_display(right_layout)
+        self.setup_speed_controls(right_layout)
+        self.setup_hotkey_settings(right_layout)
+        self.setup_delay_settings(right_layout)
+        self.setup_info_display(right_layout)
+        layout.addWidget(right_panel, stretch=1)
+
+    def setup_play_controls(self, layout):
         play_controls = QHBoxLayout()
         play_controls.setSpacing(10)
-        
         self.play_button = QPushButton("开始")
         self.play_button.setFixedHeight(30)
         self.play_button.clicked.connect(self.toggle_pause)
         play_controls.addWidget(self.play_button)
-        
         self.stop_button = QPushButton("结束演奏")
         self.stop_button.setFixedHeight(30)
         self.stop_button.clicked.connect(self.stop_playback)
         play_controls.addWidget(self.stop_button)
-        
         self.play_mode_button = QPushButton(self.current_play_mode)
         self.play_mode_button.setFixedHeight(30)
         self.play_mode_button.clicked.connect(self.toggle_play_mode)
         play_controls.addWidget(self.play_mode_button)
-        
         self.auto_play = QCheckBox("自动播放")
-        self.auto_play.setStyleSheet("""
-            QCheckBox {
-                color: #cccccc;
-                spacing: 5px;
-            }
-            QCheckBox::indicator {
-                width: 18px;
-                height: 18px;
-                border-radius: 3px;
-                border: 1px solid #555555;
-                background: #252525;
-            }
-            QCheckBox::indicator:checked {
-                background: #4CAF50;
-                border: 1px solid #45a049;
-            }
-            QCheckBox::indicator:hover {
-                border: 1px solid #4CAF50;
-            }
-        """)
+        self.auto_play.setStyleSheet(self.get_checkbox_stylesheet())
         play_controls.addWidget(self.auto_play)
-        
-        right_layout.addLayout(play_controls)
-        
-        # 时间显示
+        layout.addLayout(play_controls)
+
+    def setup_time_display(self, layout):
         self.time_label = QLabel("00:00 / 00:00")
         self.time_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        right_layout.addWidget(self.time_label)
-        
-        # 速度控制
+        layout.addWidget(self.time_label)
+
+    def setup_speed_controls(self, layout):
         speed_layout = QHBoxLayout()
         speed_layout.addWidget(QLabel("速度:"))
-        
-        # 添加速度滑动条
         self.speed_slider = QSlider(Qt.Orientation.Horizontal)
         self.speed_slider.setMinimum(10)  # 最小速度 0.1
         self.speed_slider.setMaximum(1000)  # 最大速度 10.0
@@ -579,103 +440,71 @@ class ModernSkyMusicPlayer(QMainWindow):
         self.speed_slider.sliderPressed.connect(self.on_slider_pressed)
         self.speed_slider.sliderReleased.connect(self.on_slider_released)
         speed_layout.addWidget(self.speed_slider)
-        
         self.speed_input = SpeedInput()
         self.speed_input.setText("1.0")
         self.speed_input.textChanged.connect(self.update_speed_from_input)
         speed_layout.addWidget(self.speed_input)
-        right_layout.addLayout(speed_layout)
-        
-        # 快捷键设置
+        layout.addLayout(speed_layout)
+
+    def setup_hotkey_settings(self, layout):
         hotkey_layout = QGridLayout()
         hotkey_layout.addWidget(QLabel("暂停:"), 0, 0)
         self.hotkey_edits["pause"] = HotkeyEdit("F10")
         hotkey_layout.addWidget(self.hotkey_edits["pause"], 0, 1)
-        
         hotkey_layout.addWidget(QLabel("停止:"), 1, 0)
         self.hotkey_edits["stop"] = HotkeyEdit("F11")
         hotkey_layout.addWidget(self.hotkey_edits["stop"], 1, 1)
-        right_layout.addLayout(hotkey_layout)
-        
-        # 延时设置
+        layout.addLayout(hotkey_layout)
+
+    def setup_delay_settings(self, layout):
         delay_layout = QHBoxLayout()
         self.delay_checkbox = QCheckBox("启用按键延时")
-        self.delay_checkbox.setStyleSheet("""
-            QCheckBox {
-                color: #cccccc;
-                spacing: 5px;
-            }
-            QCheckBox::indicator {
-                width: 18px;
-                height: 18px;
-                border-radius: 3px;
-                border: 1px solid #555555;
-                background: #252525;
-            }
-            QCheckBox::indicator:checked {
-                background: #4CAF50;
-                border: 1px solid #45a049;
-            }
-            QCheckBox::indicator:hover {
-                border: 1px solid #4CAF50;
-            }
-        """)
+        self.delay_checkbox.setStyleSheet(self.get_checkbox_stylesheet())
         self.delay_checkbox.setChecked(self.delay_enabled)
         self.delay_checkbox.stateChanged.connect(self.toggle_delay)
-        
         self.delay_min_input = QLineEdit(str(self.delay_min))
         self.delay_min_input.setFixedWidth(50)
         self.delay_max_input = QLineEdit(str(self.delay_max))
         self.delay_max_input.setFixedWidth(50)
-        
         delay_layout.addWidget(self.delay_checkbox)
         delay_layout.addWidget(QLabel("下限(ms):"))
         delay_layout.addWidget(self.delay_min_input)
         delay_layout.addWidget(QLabel("上限(ms):"))
         delay_layout.addWidget(self.delay_max_input)
-        
-        right_layout.addLayout(delay_layout)
-        
+        layout.addLayout(delay_layout)
         save_button = QPushButton("保存设置")
         save_button.clicked.connect(self.save_delay_settings)
-        right_layout.addWidget(save_button)
-        
-        # 添加弹性空间
-        right_layout.addStretch()
-        
-        # 曲谱信息显示区域（移到底部）
+        layout.addWidget(save_button)
+        layout.addStretch()
+
+    def setup_info_display(self, layout):
         info_group = QWidget()
         info_layout = QGridLayout(info_group)
-        
         self.song_name_label = QLabel("曲名: -")
         self.author_label = QLabel("作者: -")
         self.bpm_label = QLabel("BPM: -")
         self.duration_label = QLabel("时长: -")
         self.note_count_label = QLabel("按键数: -")
-        
-        # 设置标签样式
         info_style = """
-            QLabel {
-                color: #cccccc;
-                padding: 2px;
-                background-color: #2d2d2d;
-                border-radius: 4px;
-            }
+            QLabel { color: #cccccc; padding: 2px; background-color: #2d2d2d; border-radius: 4px; }
         """
-        for label in [self.song_name_label, self.author_label, self.bpm_label, 
-                     self.duration_label, self.note_count_label]:
+        for label in [self.song_name_label, self.author_label, self.bpm_label, self.duration_label, self.note_count_label]:
             label.setStyleSheet(info_style)
             label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
-        
         info_layout.addWidget(self.song_name_label, 0, 0)
         info_layout.addWidget(self.author_label, 1, 0)
         info_layout.addWidget(self.bpm_label, 2, 0)
         info_layout.addWidget(self.duration_label, 3, 0)
         info_layout.addWidget(self.note_count_label, 4, 0)
-        
-        right_layout.addWidget(info_group)
-        
-        layout.addWidget(right_panel, stretch=1)
+        layout.addWidget(info_group)
+
+    def get_checkbox_stylesheet(self):
+        return """
+            QCheckBox { color: #cccccc; spacing: 5px; }
+            QCheckBox::indicator { width: 18px; height: 18px; border-radius: 3px; border: 1px solid #555555; background: #252525; }
+            QCheckBox::indicator:checked { background: #4CAF50; border: 1px solid #45a049; }
+            QCheckBox::indicator:hover { border: 1px solid #4CAF50; }
+        """
 
     def _update_ui(self):
         if self.play_thread and self.play_thread.isRunning():
@@ -743,6 +572,12 @@ class ModernSkyMusicPlayer(QMainWindow):
                 self.log("加载歌曲失败")
                 return
                 
+            notes = song_data.get("songNotes", [])
+            if not isinstance(notes, list) or not all(isinstance(note, dict) for note in notes):
+                self.log(f"曲谱 {song_name} 的音符数据不符合预期，删除曲谱文件")
+                os.remove(file_path)
+                return
+
             self._song_cache[song_name] = song_data
             self.current_song_data = song_data
             self._current_song = song_name
@@ -750,7 +585,6 @@ class ModernSkyMusicPlayer(QMainWindow):
             # 更新曲谱信息显示
             self.update_song_info(song_data, song_name)
             
-            notes = song_data["songNotes"]
             if notes:
                 if len(notes) > 1:
                     self.total_duration = (notes[-1]['time'] - notes[0]['time']) / 1000
@@ -768,14 +602,18 @@ class ModernSkyMusicPlayer(QMainWindow):
         except Exception as e:
             self.log(f"加载歌曲出错: {str(e)}")
 
-    def update_song_info(self, song_data, file_name):
+    def update_song_info(self, song_data, song_name):
         """更新曲谱信息显示"""
-        real_name = song_data.get("name", file_name)
+        real_name = song_data.get("name", song_name)
         author = song_data.get("author", "未知")
         bpm = song_data.get("bpm", "未知")
         notes = song_data.get("songNotes", [])
         
-        duration = (notes[-1]['time'] - notes[0]['time']) / 1000 if notes else 0
+        if isinstance(notes, list) and all(isinstance(note, dict) for note in notes):
+            duration = (notes[-1]['time'] - notes[0]['time']) / 1000 if notes else 0
+        else:
+            duration = 0
+            
         minutes = int(duration // 60)
         seconds = int(duration % 60)
         
@@ -935,8 +773,8 @@ class ModernSkyMusicPlayer(QMainWindow):
             total_songs = current_list.count()
             if total_songs > 1:
                 next_row = current_row
-                while next_row == current_row:
-                    next_row = random.randint(0, total_songs - 1)
+                while (next_row := random.randint(0, total_songs - 1)) == current_row:
+                    pass
             else:
                 next_row = 0
         
