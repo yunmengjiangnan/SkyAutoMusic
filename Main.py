@@ -14,6 +14,7 @@ def resource_path(relative_path):
     return os.path.join(base_path, relative_path)
 
 def rename_txt_to_json(folder_path):
+    """将指定文件夹中的所有 .txt 文件重命名为 .json 文件"""
     for filename in os.listdir(folder_path):
         if filename.endswith('.txt'):
             base = os.path.splitext(filename)[0]
@@ -26,15 +27,16 @@ def rename_txt_to_json(folder_path):
                 print(f"文件 {new_filename} 已存在，跳过重命名 {filename}")
 
 def setup_application():
+    """设置应用程序，包括图标"""
     app = QApplication(sys.argv)
     try:
-        app_icon = QIcon(resource_path("icon.ico"))
-        app.setWindowIcon(app_icon)
+        app.setWindowIcon(QIcon(resource_path("icon.ico")))
     except Exception as e:
         print(f"加载图标失败: {str(e)}")
     return app
 
 def main():
+    """主函数，初始化应用程序并启动主窗口"""
     songs_folder = "score/score/"
     rename_txt_to_json(songs_folder)
 

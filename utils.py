@@ -4,6 +4,7 @@ import codecs
 import keyboard
 import time
 import random
+import requests
 
 def load_key_mapping(custom_mapping=None):
     default_mapping = {
@@ -23,9 +24,8 @@ key_mapping = load_key_mapping()
 def load_json(file_path, encoding_cache={}):
     """优化JSON加载"""
     try:
-        if file_path in encoding_cache:
-            encoding = encoding_cache[file_path]
-        else:
+        encoding = encoding_cache.get(file_path)
+        if not encoding:
             with open(file_path, 'rb') as f:
                 raw_data = f.read()
                 encoding = chardet.detect(raw_data)['encoding']
@@ -42,14 +42,11 @@ def load_json(file_path, encoding_cache={}):
         return None
 
 def press_key(key, time_interval, delay_enabled=False, delay_min=200, delay_max=500):
-    if key in key_mapping:
-        key_to_press = key_mapping[key]
+    key_to_press = key_mapping.get(key)
+    if key_to_press:
         keyboard.press(key_to_press)
-        
         if delay_enabled:
-            delay = random.randint(delay_min, delay_max) / 1000.0
-            time.sleep(delay)
-        
+            time.sleep(random.randint(delay_min, delay_max) / 1000.0)
         time.sleep(time_interval)
         keyboard.release(key_to_press)
     else:
@@ -60,7 +57,6 @@ def release_all_keys():
     for key in key_mapping.values():
         keyboard.release(key)
 
-# 优化按键映射
 _key_map_cache = {}
 
 def get_key_mapping(key):
@@ -68,3 +64,16 @@ def get_key_mapping(key):
     if key not in _key_map_cache:
         _key_map_cache[key] = key_mapping.get(key)
     return _key_map_cache[key]
+
+def fetch_latest_version():
+    """获取最新版本信息"""
+    try:
+        response = requests.get('https://gitee.com/Tloml-Starry/resources/raw/master/resources/json/SkyAutoMusicVersion.json')
+        if response.status_code == 200:
+            data = response.json()
+            return data.get('version', '未知版本')
+        else:
+            return '获取失败'
+    except Exception as e:
+        print(f"获取最新版本信息失败: {e}")
+        return '获取失败'
